@@ -31,4 +31,3 @@ class LoadFactOperator(BaseOperator):
         """.format(table=self.table, sql=self.sql)
         
         redshift_hook.run(sql)
-        self.log.info('LoadFactOperator not implemented yet')

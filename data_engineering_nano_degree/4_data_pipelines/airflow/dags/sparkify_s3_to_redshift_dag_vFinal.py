@@ -24,7 +24,7 @@ default_args = {
 }
 
 
-dag = DAG('udac_sparkify_data_pipeline',
+dag = DAG('udac_sparkify_data_pipeline_v2',
             default_args=default_args
           , description='Load and transform data in Redshift with Airflow'
           , schedule_interval='@hourly'
@@ -33,26 +33,6 @@ dag = DAG('udac_sparkify_data_pipeline',
 
 
 start_operator = DummyOperator(task_id='begin_execution',  dag=dag)
-
-
-create_table_staging_events = PostgresOperator(
-          task_id='create_staging_events_table'
-        , dag=dag
-        , postgres_conn_id='redshift'
-        , sql=SqlQueries.create_table_staging_events
-)
-
-
-create_table_staging_songs = PostgresOperator(
-          task_id='create_staging_songs_table'
-        , dag=dag
-        , postgres_conn_id='redshift'
-        , sql=SqlQueries.create_table_staging_songs
-)
-
-
-
-staging_tables_created_operator = DummyOperator(task_id='staging_tables_created',  dag=dag)
 
 
 stage_events_to_redshift = StageToRedshiftOperator(
@@ -79,45 +59,6 @@ stage_songs_to_redshift = StageToRedshiftOperator(
 )
 
 s3_to_redshift_operator = DummyOperator(task_id='s3_to_redshift_data_load',  dag=dag)
-
-
-create_f_songplays = PostgresOperator(
-          task_id='create_f_songplays'
-        , dag=dag
-        , postgres_conn_id='redshift'
-        , sql=SqlQueries.create_songplays
-)
-
-create_d_songs = PostgresOperator(
-          task_id='create_d_songs'
-        , dag=dag
-        , postgres_conn_id='redshift'
-        , sql=SqlQueries.create_songs
-)
-
-create_d_users = PostgresOperator(
-          task_id='create_d_users'
-        , dag=dag
-        , postgres_conn_id='redshift'
-        , sql=SqlQueries.create_users
-)
-
-create_d_artists = PostgresOperator(
-          task_id='create_d_artists'
-        , dag=dag
-        , postgres_conn_id='redshift'
-        , sql=SqlQueries.create_artists
-)
-
-
-create_d_time = PostgresOperator(
-          task_id='create_d_time'
-        , dag=dag
-        , postgres_conn_id='redshift'
-        , sql=SqlQueries.create_time
-)
-
-created_dim_and_fact_tables_operator = DummyOperator(task_id='created_dim_and_fact_tables',  dag=dag)
 
 
 load_songplays_table = LoadFactOperator(
@@ -162,7 +103,7 @@ load_time_dimension_table = LoadDimensionOperator(
 
 
 run_quality_checks = DataQualityOperator(
-      task_id='Run_data_quality_checks'
+      task_id='run_data_quality_checks'
     , dag=dag
     , check_stmts=[
         {
@@ -183,13 +124,8 @@ end_operator = DummyOperator(task_id='stop_execution',  dag=dag)
 
 
 
-#dagDependency
-start_operator >> [create_table_staging_events, create_table_staging_songs] >> staging_tables_created_operator
+start_operator >> [stage_events_to_redshift, stage_songs_to_redshift] >> s3_to_redshift_operator
 
-staging_tables_created_operator >> [stage_events_to_redshift, stage_songs_to_redshift] >> s3_to_redshift_operator
-
-s3_to_redshift_operator >> [create_f_songplays, create_d_songs, create_d_users, create_d_artists, create_d_time] >> created_dim_and_fact_tables_operator
-
-created_dim_and_fact_tables_operator >> [load_songplays_table, load_song_dimension_table, load_user_dimension_table, load_artist_dimension_table, load_time_dimension_table] >> run_quality_checks
+s3_to_redshift_operator >> [load_songplays_table, load_song_dimension_table, load_user_dimension_table, load_artist_dimension_table, load_time_dimension_table] >> run_quality_checks
 
 run_quality_checks >> end_operator
