@@ -12,6 +12,7 @@ class LoadDimensionOperator(BaseOperator):
                  , table
                  , redshift_conn_id='redshift_conn_id'
                  , sql=''
+                 , mode='append'
                  , *args
                  , **kwargs):
 
@@ -19,6 +20,7 @@ class LoadDimensionOperator(BaseOperator):
         self.table=table
         self.redshift_conn_id=redshift_conn_id
         self.sql=sql
+        self.mode=mode
         
         
     def execute(self, context):
@@ -26,10 +28,11 @@ class LoadDimensionOperator(BaseOperator):
         credentials = aws_hook.get_credentials()
         redshift_hook = PostgresHook("redshift")
         
-        sql = """INSERT INTO {table}
-              {sql}""".format(table=self.table, sql=self.sql)
-        
+        if self.mode == 'truncate':
+            sql = """DELETE FROM {table};""".format(table=self.table)
+            redshift_hook.run(sql)
+
+        sql = """INSERT INTO {table} {sql}""".format(table=self.table, sql=self.sql)
         redshift_hook.run(sql)
-        #self.log.info('LoadDimensionOperator not implemented yet')
         
         

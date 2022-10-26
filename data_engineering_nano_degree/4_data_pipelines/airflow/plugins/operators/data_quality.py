@@ -21,3 +21,15 @@ class DataQualityOperator(BaseOperator):
 
         for stmt in self.check_stmts:
             result = int(redshift_hook.get_first(sql=stmt['sql'])[0])
+            
+            if stmt['op'] == 'eq':
+                if result != stmt['val']:
+                    raise AssertionError(f"Check failed: {result} {stmt['op']} {stmt['val']}")
+
+            elif stmt['op'] == 'ne':
+                if result == stmt['val']:
+                    raise AssertionError(f"Check failed: {result} {stmt['op']} {stmt['val']}")
+
+            elif stmt['op'] == 'gt':
+                if result <= stmt['val']:
+                    raise AssertionError(f"Check failed: {result} {stmt['op']} {stmt['val']}")

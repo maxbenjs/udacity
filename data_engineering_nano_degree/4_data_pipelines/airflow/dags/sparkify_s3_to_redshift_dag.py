@@ -15,10 +15,6 @@ from operators import (
 
 
 
-
-# AWS_KEY = os.environ.get('AWS_KEY')
-# AWS_SECRET = os.environ.get('AWS_SECRET')
-
 default_args = {
       'owner': 'maxbs'
     , 'start_date': datetime(2022,10,25)
@@ -46,12 +42,15 @@ create_table_staging_events = PostgresOperator(
         , sql=SqlQueries.create_table_staging_events
 )
 
+
 create_table_staging_songs = PostgresOperator(
           task_id='create_staging_songs_table'
         , dag=dag
         , postgres_conn_id='redshift'
         , sql=SqlQueries.create_table_staging_songs
 )
+
+
 
 staging_tables_created_operator = DummyOperator(task_id='staging_tables_created',  dag=dag)
 
@@ -133,6 +132,7 @@ load_user_dimension_table = LoadDimensionOperator(
     , dag=dag
     , table='users'
     , sql=SqlQueries.user_table_insert
+    , mode='truncate'
 )
 
 load_song_dimension_table = LoadDimensionOperator(
@@ -140,6 +140,7 @@ load_song_dimension_table = LoadDimensionOperator(
     , dag=dag
     , table='songs'
     , sql=SqlQueries.song_table_insert
+    , mode='truncate'
 )
 
 load_artist_dimension_table = LoadDimensionOperator(
@@ -147,6 +148,7 @@ load_artist_dimension_table = LoadDimensionOperator(
     , dag=dag
     , table='artists'
     , sql=SqlQueries.artist_table_insert
+    , mode='truncate'
 )
 
 load_time_dimension_table = LoadDimensionOperator(
@@ -154,9 +156,9 @@ load_time_dimension_table = LoadDimensionOperator(
     , dag=dag
     , table='time'
     , sql=SqlQueries.time_table_insert
+    , mode='truncate'
 )
 
-#loaded_dim_and_fact_tables_operator = DummyOperator(task_id='loaded_dim_and_fact_tables',  dag=dag)
 
 
 run_quality_checks = DataQualityOperator(
@@ -181,48 +183,13 @@ end_operator = DummyOperator(task_id='stop_execution',  dag=dag)
 
 
 
-##start_operator >> [create_table_staging_events, create_table_staging_songs,create_f_songplays, create_d_songs, create_d_users, create_d_artists, create_d_time] >> tables_created_operator >> [stage_events_to_redshift, stage_songs_to_redshift] >> s3_to_redshift_operator >> [load_songplays_table, load_song_dimension_table, load_user_dimension_table, load_artist_dimension_table, load_time_dimension_table] >> loaded_dim_and_fact_tables_operator >> run_quality_checks >> end_operator
-
-
 #dagDependency
-start_operator >> create_table_staging_events
-start_operator >> create_table_staging_songs
+start_operator >> [create_table_staging_events, create_table_staging_songs] >> staging_tables_created_operator
 
-create_table_staging_events >> staging_tables_created_operator
-create_table_staging_songs >> staging_tables_created_operator
+staging_tables_created_operator >> [stage_events_to_redshift, stage_songs_to_redshift] >> s3_to_redshift_operator
 
-staging_tables_created_operator >> stage_events_to_redshift
-staging_tables_created_operator >> stage_songs_to_redshift
+s3_to_redshift_operator >> [create_f_songplays, create_d_songs, create_d_users, create_d_artists, create_d_time] >> created_dim_and_fact_tables_operator
 
-stage_events_to_redshift >> s3_to_redshift_operator
-stage_songs_to_redshift >> s3_to_redshift_operator
-
-s3_to_redshift_operator >> create_f_songplays
-s3_to_redshift_operator >> create_d_songs
-s3_to_redshift_operator >> create_d_users
-s3_to_redshift_operator >> create_d_artists
-s3_to_redshift_operator >> create_d_time
-
-
-create_f_songplays >> created_dim_and_fact_tables_operator
-create_d_songs >> created_dim_and_fact_tables_operator
-create_d_users >> created_dim_and_fact_tables_operator
-create_d_artists >> created_dim_and_fact_tables_operator
-create_d_time >> created_dim_and_fact_tables_operator
-
-
-created_dim_and_fact_tables_operator >> load_songplays_table
-created_dim_and_fact_tables_operator >> load_song_dimension_table
-created_dim_and_fact_tables_operator >> load_user_dimension_table
-created_dim_and_fact_tables_operator >> load_artist_dimension_table
-created_dim_and_fact_tables_operator >> load_time_dimension_table
-
-
-load_songplays_table >> run_quality_checks
-load_song_dimension_table >> run_quality_checks
-load_user_dimension_table >> run_quality_checks
-load_artist_dimension_table >> run_quality_checks
-load_time_dimension_table >> run_quality_checks
-
+created_dim_and_fact_tables_operator >> [load_songplays_table, load_song_dimension_table, load_user_dimension_table, load_artist_dimension_table, load_time_dimension_table] >> run_quality_checks
 
 run_quality_checks >> end_operator
