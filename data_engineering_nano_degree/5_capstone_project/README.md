@@ -178,20 +178,22 @@ The data model has been overengineered for the scope of this project where the E
 #####  Primary Table Relationship
 Primary facts come from f_uk_crime_events while we can enrich the data from the various dimension and helper tables. Below we would look at how the relationships of joing this data.
 
+```
 f_uk_crime_events fuce
 join d_investigation_outcome dio on fuce.investigation_outcome_id = dio.investigation_outcome_id
 join d_location dl on fuce.location_id = dl.location_id 
 join h_location_mapping hlm on dl.lsoa_code = hlm.lsoa_code
-
+```
 
 #####  Secondary Fact Table Relationship
 Working with the secondary fact tables poses some challenges if we want to join this data with the primary fact table (f_uk_crime_events). Generally fact tables shouldn't be joined with one another, due to performance issues and creating duplicates.
 
 ###### Scenario 1:
+```
 from f_uk_population fup  / f_uk_gdi fug 
 join h_location_mapping hlm on hlm.lau1_code = fup.lau1_code
 join d_location dl on dl.lsoa_code = hlm.lsoa_code 
-
+```
 
 ###### Scenario 2:
 If we wanted to join the f_uk_population / f_uk_gdi with the f_uk_crime_events, we would use sub queries where we would roll up (aggregate or rank and limit) the data on a locational level. From there we could join this data using h_location_mapping.
