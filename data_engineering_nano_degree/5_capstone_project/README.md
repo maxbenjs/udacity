@@ -156,7 +156,45 @@ The data model has been overengineered for the scope of this project where the E
 - postcode varchar british location postcode
 - lsoa_code varchar location lsoa code
 - lau1_code varchar location lau1 code
-- lsoa_name varchar location lsoa name 
+- location_name varchar location name (city/town/village name)
+
+### 3.3 Data Relationship
+---
+
+#### Primary Fact Table
+- f_uk_crime_events
+
+#### Primary Dimension & Helper Tables
+- d_location
+- d_investigation_outcome
+- h_location_mapping
+
+#### Secondary Fact Tables
+- f_uk_population
+- f_uk_gdi
+
+#### Joining Data
+
+#####  Primary Table Relationship
+Primary facts come from f_uk_crime_events while we can enrich the data from the various dimension and helper tables. Below we would look at how the relationships of joing this data.
+
+f_uk_crime_events fuce
+join d_investigation_outcome dio on fuce.investigation_outcome_id = dio.investigation_outcome_id
+join d_location dl on fuce.location_id = dl.location_id 
+join h_location_mapping hlm on dl.lsoa_code = hlm.lsoa_code
+
+
+#####  Secondary Fact Table Relationship
+Working with the secondary fact tables poses some challenges if we want to join this data with the primary fact table (f_uk_crime_events). Generally fact tables shouldn't be joined with one another, due to performance issues and creating duplicates.
+
+###### Scenario 1:
+from f_uk_population fup  / f_uk_gdi fug 
+join h_location_mapping hlm on hlm.lau1_code = fup.lau1_code
+join d_location dl on dl.lsoa_code = hlm.lsoa_code 
+
+
+###### Scenario 2:
+If we wanted to join the f_uk_population / f_uk_gdi with the f_uk_crime_events, we would use sub queries where we would roll up (aggregate or rank and limit) the data on a locational level. From there we could join this data using h_location_mapping.
 
 
 ### 4. Project Structure & ETL Orchestration
@@ -191,6 +229,7 @@ The data model has been overengineered for the scope of this project where the E
 - ETL Notebook.ipynb: Notebook which builds & tests the final ETL script
 - ETL.py: Python script for the ETL
 - dl.cfg: Config file which contains access keys and credentials for AWS, S3 & DWH
+- DWH Data and Queries Notebook.ipynb: Notebook which contains example queries from the tables in the DWH
 
 
 ### 5. Further Notes
@@ -224,11 +263,6 @@ The data model has been overengineered for the scope of this project where the E
 ### 6. Running the ETL
 ---
 Within ETL Notebook, execute '%run ETL.py' within a cell.
-- Improving running times for testing:
-    - Biggest bottlenecks are the 2 larger datasetes (UK Crime Data & Postcode mapping data)
-    - Reduce the size of these 2 csv files, by limiting the rows of the df/csv
-    - helpers/helpers_python/python_functions.py
-    - For extract_and_clean_crime_dataset() & extract_and_clean_postcode_helper_dataset(), insert nrows into read_csv
-    - Given the patchy internet where this ETL was built and tested, running times have varied from 16m (100% of dataset) to 15m (5% of dataset)
-        
-        
+- Due to limitations in the file sizes which can be uploaded to GitHub, ETL.py doesn't extract the raw data. Instead the script, references the extracted data in which the size of the files have been reduced by limiting the number of rows in the large datasets to 1million and compressing the files.
+
+- The ETL.py script then ommits to the extract and transform functions, and starts from uploading the compressed files to S3 and completing the rest of the ETL.

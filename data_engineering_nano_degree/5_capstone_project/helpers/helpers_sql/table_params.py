@@ -75,8 +75,8 @@ h_location_mapping = {
                   postcode varchar(256)
                 , lsoa_code varchar(256)
                 , lau1_code varchar(256)
-                , lsoa_name varchar(256)
-                , primary key(postcode, lsoa_code, lau1_code, lsoa_name)
+                , location_name varchar(256)
+                , primary key(postcode, lsoa_code, lau1_code, location_name)
         );
         """
     , 'datasource':'s3'
